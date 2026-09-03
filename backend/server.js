@@ -11,9 +11,9 @@ const PORT = process.env.PORT || 8787;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// ================================
+// ===============================
 // PRODUCT RECOMMENDATION
-// ================================
+// ===============================
 
 app.post("/api/recommend", async (req, res) => {
   try {
@@ -64,6 +64,7 @@ User request:
 ${userInput}
 `;
 
+    // Gemini API URL
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
@@ -160,9 +161,9 @@ ${userInput}
 });
 
 
-// ================================
+// ===============================
 // HEALTH CHECK
-// ================================
+// ===============================
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -171,9 +172,9 @@ app.get("/api/health", (_req, res) => {
 });
 
 
-// ================================
-// AVAILABLE GEMINI MODELS
-// ================================
+// ===============================
+// CHECK AVAILABLE GEMINI MODELS
+// ===============================
 
 app.get("/api/models", async (_req, res) => {
   try {
@@ -187,7 +188,6 @@ app.get("/api/models", async (_req, res) => {
       "https://generativelanguage.googleapis.com/v1beta/models",
       {
         method: "GET",
-
         headers: {
           "x-goog-api-key": GEMINI_API_KEY
         }
@@ -196,18 +196,10 @@ app.get("/api/models", async (_req, res) => {
 
     const data = await response.json();
 
-    console.log(
-      "Gemini models response:",
-      JSON.stringify(data, null, 2)
-    );
-
     return res.status(response.status).json(data);
 
   } catch (error) {
-    console.error(
-      "Models error:",
-      error
-    );
+    console.error("Models error:", error);
 
     return res.status(500).json({
       error: error.message
@@ -216,9 +208,9 @@ app.get("/api/models", async (_req, res) => {
 });
 
 
-// ================================
+// ===============================
 // START SERVER
-// ================================
+// ===============================
 
 app.listen(PORT, () => {
   console.log(
