@@ -9,7 +9,7 @@ app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 8787;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.6-flash";
 
 // ==========================================
 // RECOMMEND PRODUCTS
@@ -196,7 +196,7 @@ app.get("/api/test-gemini", async (_req, res) => {
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
       {
         method: "POST",
 
