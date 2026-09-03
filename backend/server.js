@@ -9,19 +9,11 @@ app.use(express.json({ limit: "1mb" }));
 
 const PORT = process.env.PORT || 8787;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3.7-flash";
 
-// POST /api/recommend
-// body:
-// {
-//   userInput: "phones for gaming",
-//   products: [
-//     { id, name, category, price, description }
-//   ]
-// }
-//
-// returns:
-// { ids: [1, 4, 7] }
+// ================================
+// PRODUCT RECOMMENDATION
+// ================================
 
 app.post("/api/recommend", async (req, res) => {
   try {
@@ -45,27 +37,44 @@ app.post("/api/recommend", async (req, res) => {
       });
     }
 
-    const systemPrompt =
-      "You are a product recommendation engine. " +
-      "Given a list of products and a user request, return ONLY a JSON array " +
-      "of the product IDs that best match the request. " +
-      "No explanation, no markdown, just the raw JSON array. " +
-      "Example valid response: [2, 5, 9]. " +
-      "If nothing matches well, return [].";
+    const systemPrompt = `
+You are a product recommendation engine.
 
-    const userPrompt =
-      `Product list: ${JSON.stringify(products)}\n\n` +
-      `User request: ${userInput}`;
+Given a list of products and a user's shopping request,
+select the products that best match the request.
+
+Return ONLY a JSON array containing the product IDs.
+
+Do not return explanations.
+Do not return markdown.
+Do not return any other text.
+
+Example:
+[2, 5, 9]
+
+If nothing matches well, return:
+[]
+`;
+
+    const userPrompt = `
+Product list:
+${JSON.stringify(products)}
+
+User request:
+${userInput}
+`;
 
     const url =
       `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
     const response = await fetch(url, {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
         "x-goog-api-key": GEMINI_API_KEY
       },
+
       body: JSON.stringify({
         systemInstruction: {
           parts: [
@@ -74,6 +83,7 @@ app.post("/api/recommend", async (req, res) => {
             }
           ]
         },
+
         contents: [
           {
             role: "user",
@@ -84,8 +94,10 @@ app.post("/api/recommend", async (req, res) => {
             ]
           }
         ],
+
         generationConfig: {
-          temperature: 0
+          temperature: 0,
+          responseMimeType: "application/json"
         }
       })
     });
@@ -100,7 +112,9 @@ app.post("/api/recommend", async (req, res) => {
       );
 
       return res.status(502).json({
-        error: "Upstream AI request failed."
+        error: "Upstream AI request failed.",
+        status: response.status,
+        details: errText
       });
     }
 
@@ -112,20 +126,14 @@ app.post("/api/recommend", async (req, res) => {
     let ids;
 
     try {
-      const cleaned = raw
-        .replace(/^```json\s*/i, "")
-        .replace(/^```\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      ids = JSON.parse(cleaned);
+      ids = JSON.parse(raw);
 
       if (!Array.isArray(ids)) {
-        throw new Error("Response was not an array");
+        throw new Error("AI response was not an array");
       }
-    } catch (parseErr) {
+    } catch (error) {
       console.error(
-        "Failed to parse model response:",
+        "Failed to parse Gemini response:",
         raw
       );
 
@@ -134,24 +142,83 @@ app.post("/api/recommend", async (req, res) => {
       });
     }
 
-    return res.json({ ids });
+    return res.json({
+      ids
+    });
 
-  } catch (err) {
+  } catch (error) {
     console.error(
-      "Unexpected error:",
-      err
+      "Unexpected server error:",
+      error
     );
 
     return res.status(500).json({
-      error: "Something went wrong on the server."
+      error: "Something went wrong on the server.",
+      details: error.message
     });
   }
 });
 
-// Health check
+
+// ================================
+// HEALTH CHECK
+// ================================
+
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true
+  });
 });
+
+
+// ================================
+// AVAILABLE GEMINI MODELS
+// ================================
+
+app.get("/api/models", async (_req, res) => {
+  try {
+    if (!GEMINI_API_KEY) {
+      return res.status(500).json({
+        error: "Server is missing GEMINI_API_KEY."
+      });
+    }
+
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models",
+      {
+        method: "GET",
+
+        headers: {
+          "x-goog-api-key": GEMINI_API_KEY
+        }
+      }
+    );
+
+    const data = await response.json();
+
+    console.log(
+      "Gemini models response:",
+      JSON.stringify(data, null, 2)
+    );
+
+    return res.status(response.status).json(data);
+
+  } catch (error) {
+    console.error(
+      "Models error:",
+      error
+    );
+
+    return res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+
+// ================================
+// START SERVER
+// ================================
 
 app.listen(PORT, () => {
   console.log(
